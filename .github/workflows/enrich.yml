@@ -2,12 +2,14 @@ name: SoundCloud Enrichment Pipeline
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Every 6 hours
+    - cron: '0 */4 * * *' # Every 4 hours
   workflow_dispatch:      # Manual trigger
 
 jobs:
   enrich:
     runs-on: ubuntu-latest
+    env:
+      PYTHONUNBUFFERED: 1 # Ensure real-time logs in GitHub
 
     steps:
     - name: Checkout repository

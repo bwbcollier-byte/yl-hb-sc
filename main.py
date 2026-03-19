@@ -10,14 +10,25 @@ import requests
 import urllib.parse
 from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (Searching locally and in parent repo)
+load_dotenv(override=True)
+load_dotenv(os.path.join(os.getcwd(), '..', '.env'), override=True)
 
 # --- Config ---
 AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
 BASE_ID = "appmbuoYupyA1iB3j"
 TABLE_ID = "tblJ7pSMe1p0iTyif"
 VIEW_ID = "viwpMtssgHDhyUfEH"
+
+if not AIRTABLE_API_KEY:
+    print("\n❌ ERROR: AIRTABLE_API_KEY not found!")
+    print("GitHub: Ensure you added 'AIRTABLE_API_KEY' to your Repo Secrets.")
+    print("Local: Ensure you have a '.env' file in this folder or the parent folder.")
+    exit(1)
+
+# Debug: Print masked key to verify it loaded correctly
+masked_key = f"{AIRTABLE_API_KEY[:5]}...{AIRTABLE_API_KEY[-4:]}"
+print(f"  [DEBUG] Authentication initialized with key: {masked_key}")
 
 AIRTABLE_HEADERS = {
     "Authorization": f"Bearer {AIRTABLE_API_KEY}",
