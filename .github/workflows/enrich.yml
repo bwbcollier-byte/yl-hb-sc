@@ -1,58 +1,74 @@
 name: SoundCloud Enrichment Pipeline
 
+# Indentation was previously broken — steps 2..N were dedented one level
+# too few, so the YAML never parsed. Fixed and brought to the modern template.
+
 on:
   schedule:
-    - cron: '0 */4 * * *' # Every 4 hours
-  workflow_dispatch:      # Manual trigger
+    - cron: '0 */4 * * *'    # Every 4 hours
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   enrich:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
-      PYTHONUNBUFFERED: 1 # Ensure real-time logs in GitHub
+      PYTHONUNBUFFERED: 1   # real-time logs in GitHub
 
     steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
       - name: Notify Supabase — start
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          echo "START_TIME=$(date +%s)" >> $GITHUB_ENV
-          curl -s -X POST "$SUPABASE_URL/rest/v1/rpc/log_workflow_run" \
+          echo "START_TIME=$(date +%s)" >> "$GITHUB_ENV"
+          curl -fsS -X POST "$SUPABASE_URL/rest/v1/rpc/log_workflow_run" \
             -H "apikey: $SUPABASE_SERVICE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"p_workflow_id": 248626814, "p_status": "running", "p_run_id": "${{ github.run_id }}"  }'
-    - name: Checkout repository
-      uses: actions/checkout@v4
+            -d '{"p_workflow_id": 248626814, "p_status": "running", "p_run_id": "${{ github.run_id }}"}'
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: Run SoundCloud Enrichment
+        env:
+          AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}
+        run: python main.py --all
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Install Playwright Browsers
-      run: playwright install chromium --with-deps
-
-    - name: Run SoundCloud Enrichment
-      env:
-        AIRTABLE_API_KEY: ${{ secrets.AIRTABLE_API_KEY }}
-      run: python main.py --all
       - name: Notify Supabase — result
         if: always()
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          DURATION=$(( $(date +%s) - $START_TIME ))
+          DURATION=$(( $(date +%s) - START_TIME ))
           STATUS="${{ job.status }}"
           PAYLOAD=$(printf '{"p_workflow_id": 248626814, "p_status": "%s", "p_duration_secs": %s, "p_run_id": "${{ github.run_id }}"}' "$STATUS" "$DURATION")
-          curl -s -X POST "$SUPABASE_URL/rest/v1/rpc/log_workflow_run" \
+          curl -fsS -X POST "$SUPABASE_URL/rest/v1/rpc/log_workflow_run" \
             -H "apikey: $SUPABASE_SERVICE_KEY" \
             -H "Authorization: Bearer $SUPABASE_SERVICE_KEY" \
             -H "Content-Type: application/json" \
