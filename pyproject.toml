@@ -1,0 +1,18 @@
+[project]
+name = "yl-hb-sc"
+version = "0.1.0"
+description = "SoundCloud enrichment scraper"
+requires-python = ">=3.12"
+dependencies = [
+  "playwright",
+  "playwright-stealth",
+  "requests",
+  "python-dotenv",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
