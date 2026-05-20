@@ -2,3 +2,4 @@ playwright
 playwright-stealth
 requests
 python-dotenv
+supabase>=2.0
